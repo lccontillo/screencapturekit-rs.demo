@@ -164,7 +164,7 @@ fn absolute_path(path: &Path) -> Result<PathBuf, Box<dyn Error>> {
 mod tests {
     use super::*;
 
-    fn args(values: &[&str]) -> impl Iterator<Item = OsString> + '_ {
+    fn args<'a>(values: &'a [&'a str]) -> impl Iterator<Item = OsString> + 'a {
         values.iter().map(OsString::from)
     }
 
