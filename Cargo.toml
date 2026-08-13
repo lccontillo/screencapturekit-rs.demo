@@ -1,0 +1,11 @@
+[package]
+name = "macos-screen-recorder"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.76"
+license = "MIT OR Apache-2.0"
+description = "A minimal macOS screen recorder built with ScreenCaptureKit-rs"
+repository = "https://github.com/lccontillo/screencapturekit-rs.demo"
+
+[dependencies]
+screencapturekit = { version = "8", features = ["macos_15_0"] }
