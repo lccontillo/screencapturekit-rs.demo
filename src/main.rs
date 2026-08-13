@@ -84,7 +84,7 @@ fn run(args: impl IntoIterator<Item = OsString>) -> Result<(), Box<dyn Error>> {
     let recording = SCRecordingOutput::new(&recording_config)
         .ok_or("failed to create recording output; macOS 15.0 or newer is required")?;
 
-    let mut stream = SCStream::new(&filter, &stream_config);
+    let stream = SCStream::new(&filter, &stream_config);
     stream.add_recording_output(&recording)?;
 
     println!(
