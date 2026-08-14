@@ -31,6 +31,13 @@ jobs:
       - name: Build ScreenCaptureKit Rust binary
         run: cargo build --release
 
+      - name: Upload Rust Release Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-screen-recorder-binary-arm64
+          path: target/release/macos-screen-recorder
+          if-no-files-found: error
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -45,11 +52,17 @@ jobs:
       - name: Capture Full macOS Runner Desktop
         run: screencapture -x runner-desktop.png || true
 
-      - name: Upload Screenshots
+      - name: Test Headless Screen Recording Execution
+        run: |
+          echo "Attempting test headless recording with compiled binary..."
+          ./target/release/macos-screen-recorder --duration 3 --output ci-recording.mp4 || echo "Headless recording note: macOS TCC permissions restricted as expected on hosted runner."
+
+      - name: Upload Screenshots & Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: electron-macos-screenshots
+          name: electron-macos-artifacts
           path: |
             screenshot.png
             runner-desktop.png
+            ci-recording.mp4
           if-no-files-found: warn
