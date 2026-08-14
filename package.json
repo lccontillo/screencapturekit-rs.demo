@@ -1,0 +1,25 @@
+{
+  "name": "screencapturekit-electron-app",
+  "version": "1.0.0",
+  "description": "Electron application integrated with ScreenCaptureKit-rs",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build:rust": "cargo build --release",
+    "screenshot": "electron . --screenshot",
+    "test": "echo \"Ready\""
+  },
+  "keywords": [
+    "screencapturekit",
+    "electron",
+    "rust",
+    "macos",
+    "screen-recording"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScreenCaptureKit + Electron</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="window-titlebar"></div>
+  <main class="container">
+    <header class="header">
+      <div class="logo-badge">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polygon points="10 8 16 12 10 16 10 8"></polygon>
+        </svg>
+      </div>
+      <div>
+        <h1>ScreenCaptureKit Rust Recorder</h1>
+        <p class="subtitle">High-performance macOS screen capture driven by Rust &amp; ScreenCaptureKit</p>
+      </div>
+    </header>
+
+    <section class="card status-card">
+      <div class="card-header">
+        <h2>Backend Status</h2>
+        <span id="backend-status-pill" class="badge badge-warning">Checking...</span>
+      </div>
+      <div class="status-details">
+        <div class="detail-row">
+          <span class="label">Platform:</span>
+          <span id="platform-value" class="value">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Rust Binary:</span>
+          <span id="binary-path-value" class="value code">-</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card control-card">
+      <h2>Capture Configuration</h2>
+      <div class="form-group">
+        <label for="duration-input">Duration (seconds):</label>
+        <div class="input-range-wrap">
+          <input type="number" id="duration-input" min="1" max="60" value="5">
+          <span class="unit">s</span>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button id="record-btn" class="btn btn-primary">
+          <span class="record-dot"></span>
+          Start Recording
+        </button>
+      </div>
+    </section>
+
+    <section class="card output-card">
+      <div class="card-header">
+        <h2>Activity &amp; Logs</h2>
+        <button id="clear-logs-btn" class="btn-text">Clear</button>
+      </div>
+      <pre id="log-output" class="log-box">Ready.</pre>
+    </section>
+  </main>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+name: Electron macOS CI & Screenshot
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-screenshot:
+    name: Build & Screenshot on macOS
+    runs-on: macos-15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Cargo data
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build ScreenCaptureKit Rust binary
+        run: cargo build --release
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Launch Electron & Capture App Screenshot
+        run: npm run screenshot
+
+      - name: Capture Full macOS Runner Desktop
+        run: screencapture -x runner-desktop.png || true
+
+      - name: Upload Screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-macos-screenshots
+          path: |
+            screenshot.png
+            runner-desktop.png
+          if-no-files-found: warn
