@@ -54,8 +54,25 @@ jobs:
 
       - name: Test Headless Screen Recording Execution
         run: |
+          echo "Starting auto-accept handler for macOS TCC prompt..."
+          osascript -e '
+          repeat 30 times
+            tell application "System Events"
+              try
+                keystroke return
+              end try
+              try
+                click button "Allow" of window 1 of (first application process whose frontmost is true)
+              end try
+              try
+                click button "Allow" of front window of (first process whose name contains "User" or name contains "Agent")
+              end try
+            end tell
+            delay 0.5
+          end repeat' >/dev/null 2>&1 &
+
           echo "Attempting test headless recording with compiled binary..."
-          ./target/release/macos-screen-recorder --duration 3 --output ci-recording.mp4 || echo "Headless recording note: macOS TCC permissions restricted as expected on hosted runner."
+          ./target/release/macos-screen-recorder --duration 5 --output ci-recording.mp4 || echo "Headless recording note: macOS TCC permissions restricted as expected on hosted runner."
 
       - name: Upload Screenshots & Artifacts
         uses: actions/upload-artifact@v4
