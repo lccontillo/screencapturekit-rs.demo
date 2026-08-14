@@ -13,7 +13,9 @@ concurrency:
 jobs:
   build-and-screenshot:
     name: Build & Screenshot on macOS
-    runs-on: macos-15
+    runs-on: macos-26
+    permissions:
+      contents: read
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
