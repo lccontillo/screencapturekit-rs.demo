@@ -52,11 +52,11 @@ jobs:
       - name: Capture Full macOS Runner Desktop
         run: screencapture -x runner-desktop.png || true
 
-      - name: Test Headless Screen Recording Execution
+      - name: Record Live Electron App on macOS Runner
         run: |
           echo "Starting auto-accept handler for macOS TCC prompt..."
           osascript -e '
-          repeat 30 times
+          repeat 40 times
             tell application "System Events"
               try
                 keystroke return
@@ -71,8 +71,18 @@ jobs:
             delay 0.5
           end repeat' >/dev/null 2>&1 &
 
-          echo "Attempting test headless recording with compiled binary..."
-          ./target/release/macos-screen-recorder --duration 5 --output ci-recording.mp4 || echo "Headless recording note: macOS TCC permissions restricted as expected on hosted runner."
+          echo "Launching Electron app on runner display in background..."
+          npx electron . &
+          ELECTRON_PID=$!
+
+          # Allow Electron window to initialize and render
+          sleep 1
+
+          echo "Starting 6-second ScreenCaptureKit recording of active Electron session..."
+          ./target/release/macos-screen-recorder --duration 6 --output ci-recording.mp4 || echo "Recording completed with status $?"
+
+          # Terminate Electron process
+          kill -TERM $ELECTRON_PID || true
 
       - name: Upload Screenshots & Artifacts
         uses: actions/upload-artifact@v4

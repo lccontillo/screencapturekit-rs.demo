@@ -66,3 +66,12 @@ clearLogsBtn.addEventListener('click', () => {
 
 // Initialize on page load
 checkBackend();
+
+let uptime = 0;
+const liveTicker = document.getElementById('live-ticker');
+setInterval(() => {
+  uptime += 0.5;
+  if (liveTicker) {
+    liveTicker.textContent = `Live Activity: ${uptime.toFixed(1)}s elapsed | Active WindowServer`;
+  }
+}, 500);
