@@ -1,0 +1,39 @@
+name: Keyboard and Mouse Telemetry CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-telemetry:
+    name: Test Keyboard & Mouse Telemetry
+    runs-on: macos-26
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Telemetry Test Suite (Keyboard & Mouse)
+        run: npm run test:telemetry
+
+      - name: Upload Telemetry JSON Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: telemetry-artifacts
+          path: telemetry/*.json
+          if-no-files-found: error

@@ -8,7 +8,8 @@
     "dev": "electron .",
     "build:rust": "cargo build --release",
     "screenshot": "electron . --screenshot",
-    "test": "echo \"Ready\""
+    "test": "node test/test-telemetry.js",
+    "test:telemetry": "node test/test-telemetry.js"
   },
   "keywords": [
     "screencapturekit",
@@ -21,5 +22,8 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^33.2.0"
+  },
+  "dependencies": {
+    "uiohook-napi": "^1.5.5"
   }
 }

@@ -40,8 +40,177 @@
       </div>
     </section>
 
+    <!-- Global Keyboard Shortcut Telemetry Recording Card -->
+    <section class="card kb-card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h2>Global Keyboard Shortcut Telemetry</h2>
+          <span class="card-tag">System-Wide Hook</span>
+        </div>
+        <span id="kb-status-pill" class="badge badge-idle">Idle</span>
+      </div>
+
+      <p class="section-desc">
+        Captures shortcuts <strong>system-wide across all applications</strong> (e.g. while recording a tutorial in VS Code, Chrome, or Terminal) with high-resolution timestamps, keycodes, and JSON telemetry export on stop.
+      </p>
+
+      <div class="kb-controls-bar">
+        <button id="kb-record-btn" class="btn btn-primary">
+          <span class="record-dot"></span>
+          <span id="kb-btn-text">Start Global Shortcut Recording</span>
+        </button>
+
+        <button id="kb-clear-btn" class="btn btn-secondary" title="Clear captured shortcuts">
+          Clear Buffer
+        </button>
+        <label class="checkbox-label" title="Show file save dialog when recording stops">
+          <input type="checkbox" id="kb-prompt-save" checked>
+          <span>Prompt Save Dialog on Stop</span>
+        </label>
+      </div>
+
+      <!-- Live Keystroke Display Box -->
+      <div class="kb-display-area">
+        <div class="kb-live-indicator">
+          <span class="kb-live-label">LIVE DETECTED SHORTCUT:</span>
+          <div id="kb-active-keys" class="kb-active-keys">
+            <span class="placeholder-text">Press any shortcut while recording...</span>
+          </div>
+        </div>
+
+        <div class="kb-stats-row">
+          <div class="stat-item">
+            <span class="stat-label">Captured Shortcuts</span>
+            <span id="kb-count-val" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Recording Time</span>
+            <span id="kb-timer-val" class="stat-value">00:00.0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Last Shortcut</span>
+            <span id="kb-last-val" class="stat-value code">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Shortcut Stream / Table -->
+      <div class="kb-stream-container">
+        <div class="stream-header">
+          <span>Captured Event Stream</span>
+          <span id="kb-stream-count" class="count-tag">0 events</span>
+        </div>
+        <div id="kb-event-list" class="kb-event-list">
+          <div class="empty-state">No shortcut events recorded yet. Click "Start Recording KB Shortcuts" and type any shortcut combination.</div>
+        </div>
+      </div>
+
+      <!-- Saved Notification Banner -->
+      <div id="kb-save-banner" class="kb-save-banner hidden">
+        <div class="banner-content">
+          <svg class="success-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <div class="banner-text">
+            <span class="banner-title">Telemetry Saved Successfully</span>
+            <span id="kb-saved-path" class="banner-path">-</span>
+          </div>
+        </div>
+        <button id="kb-reveal-btn" class="btn btn-xs btn-outline">Show in Folder</button>
+      </div>
+    </section>
+
+    <!-- Global Mouse & Cursor Telemetry Recording Card -->
+    <section class="card mouse-card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h2>Global Mouse &amp; Cursor Telemetry</h2>
+          <span class="card-tag">System-Wide Hook</span>
+        </div>
+        <span id="mouse-status-pill" class="badge badge-idle">Idle</span>
+      </div>
+
+      <p class="section-desc">
+        Captures cursor movements (X/Y, normalized NX/NY), mouse clicks, and scroll wheel events <strong>system-wide across all applications</strong> with high-resolution timestamps and JSON telemetry export on stop.
+      </p>
+
+      <div class="mouse-controls-bar">
+        <button id="mouse-record-btn" class="btn btn-primary">
+          <span class="record-dot"></span>
+          <span id="mouse-btn-text">Start Global Mouse Recording</span>
+        </button>
+
+        <button id="mouse-clear-btn" class="btn btn-secondary" title="Clear captured mouse events">
+          Clear Buffer
+        </button>
+        <label class="checkbox-label" title="Show file save dialog when recording stops">
+          <input type="checkbox" id="mouse-prompt-save" checked>
+          <span>Prompt Save Dialog on Stop</span>
+        </label>
+      </div>
+
+      <!-- Live Cursor & Action Display Box -->
+      <div class="mouse-display-area">
+        <div class="mouse-live-indicator">
+          <span class="mouse-live-label">LIVE CURSOR POSITION &amp; ACTION:</span>
+          <div class="mouse-live-values">
+            <span id="mouse-coord-val" class="mouse-coord-badge">X: - | Y: - (nx: -, ny: -)</span>
+            <span id="mouse-last-action" class="mouse-action-badge">No click/wheel yet</span>
+          </div>
+        </div>
+
+        <div class="mouse-stats-row">
+          <div class="stat-item">
+            <span class="stat-label">Total Events</span>
+            <span id="mouse-count-val" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Moves</span>
+            <span id="mouse-moves-val" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Clicks</span>
+            <span id="mouse-clicks-val" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Wheel Scrolls</span>
+            <span id="mouse-wheel-val" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Recording Time</span>
+            <span id="mouse-timer-val" class="stat-value">00:00.0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Mouse Stream / Table -->
+      <div class="mouse-stream-container">
+        <div class="stream-header">
+          <span>Captured Mouse Stream</span>
+          <span id="mouse-stream-count" class="count-tag">0 events</span>
+        </div>
+        <div id="mouse-event-list" class="mouse-event-list">
+          <div class="empty-state">No mouse events recorded yet. Click "Start Global Mouse Recording" and move, click, or scroll anywhere system-wide.</div>
+        </div>
+      </div>
+
+      <!-- Saved Notification Banner -->
+      <div id="mouse-save-banner" class="mouse-save-banner hidden">
+        <div class="banner-content">
+          <svg class="success-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <div class="banner-text">
+            <span class="banner-title">Mouse Telemetry Saved Successfully</span>
+            <span id="mouse-saved-path" class="banner-path">-</span>
+          </div>
+        </div>
+        <button id="mouse-reveal-btn" class="btn btn-xs btn-outline">Show in Folder</button>
+      </div>
+    </section>
+
     <section class="card control-card">
-      <h2>Capture Configuration</h2>
+      <h2>Screen Capture Configuration</h2>
       <div class="form-group">
         <label for="duration-input">Duration (seconds):</label>
         <div class="input-range-wrap">

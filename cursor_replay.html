@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cursor Telemetry Replay — Physics Lab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<style>
+  :root {
+    --bg: #0e0f12;
+    --panel-bg: #15171c;
+    --stage-border: #2a2d34;
+    --accent: #7c9cff;
+    --accent-dim: #4a5b96;
+    --text: #cfd3dc;
+    --dim: #6d7282;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+  }
+  .app {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px;
+  }
+  .stage-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    flex: 1 1 560px;
+    max-width: 900px;
+  }
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1440 / 900;
+    background: radial-gradient(circle at 30% 20%, #1c1f27 0%, #16181d 60%);
+    border: 1px solid var(--stage-border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    cursor: crosshair;
+  }
+  .path-line { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+  .trail-dot {
+    position: absolute; top:0; left:0; width:10px; height:10px; margin:-5px 0 0 -5px;
+    border-radius:50%; background: var(--accent); pointer-events:none;
+    will-change: transform, opacity;
+  }
+  .streak {
+    position: absolute; top:0; left:0; width:60px; height:3px; margin-top:-1.5px;
+    border-radius:3px; background: linear-gradient(90deg, rgba(124,156,255,0.85), rgba(124,156,255,0));
+    pointer-events:none; transform-origin:0% 50%; opacity:0; will-change: transform, opacity;
+  }
+  .cursor { position:absolute; top:0; left:0; width:28px; height:28px; pointer-events:none;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6)); will-change: transform; }
+  .cursor-inner { width:100%; height:100%; transform-origin: 14% 8%; }
+  .rec-badge {
+    position: absolute; top: 10px; left: 10px; display: none; align-items: center; gap: 6px;
+    background: rgba(0,0,0,0.55); padding: 5px 10px; border-radius: 20px; font-size: 12px;
+    color: var(--danger); pointer-events: none;
+  }
+  .rec-badge.active { display: flex; }
+  .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .controls { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--dim); flex-wrap: wrap; justify-content: center; }
+  button {
+    background: #1e2128; border: 1px solid var(--stage-border); color: var(--text);
+    padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  button:hover { background: #262a33; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { border-color: var(--accent-dim); color: var(--accent); }
+  button.danger { border-color: #7a3535; color: var(--danger); }
+  .time { font-variant-numeric: tabular-nums; min-width: 56px; }
+  .dataset-tag { font-size: 12px; color: var(--dim); }
+  .dataset-tag b { color: var(--text); }
+
+  .panel {
+    width: 300px;
+    flex: 0 0 300px;
+    background: var(--panel-bg);
+    border: 1px solid var(--stage-border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    font-size: 13px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .panel h3 {
+    margin: 0 0 2px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--dim); border-bottom: 1px solid var(--stage-border); padding-bottom: 6px;
+  }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .toggle-row { display:flex; align-items:center; gap:8px; }
+  .toggle-row label { flex: 1; cursor: pointer; }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .field-label { display: flex; justify-content: space-between; color: var(--dim); }
+  .field-label span.val { color: var(--text); font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+  .panel-actions { display: flex; gap: 8px; }
+  .panel-actions button { flex: 1; }
+  .status { font-size: 12px; color: var(--dim); min-height: 16px; }
+  .status.error { color: var(--danger); }
+  .legend { font-size: 12px; color: var(--dim); max-width: 620px; text-align: center; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="stage-col">
+    <div class="stage" id="stage">
+      <svg class="path-line" id="pathSvg" viewBox="0 0 1440 900" preserveAspectRatio="none">
+        <polyline id="pathPoly" fill="none" stroke="#3a3f4c" stroke-width="2" stroke-dasharray="4 4"/>
+      </svg>
+
+      <div class="streak" id="streak"></div>
+      <div id="trailGroup">
+        <div class="trail-dot" id="dot0"></div>
+        <div class="trail-dot" id="dot1"></div>
+        <div class="trail-dot" id="dot2"></div>
+        <div class="trail-dot" id="dot3"></div>
+      </div>
+
+      <div class="cursor" id="cursor">
+        <div class="cursor-inner" id="cursorInner">
+          <svg viewBox="0 0 24 24" width="28" height="28">
+            <path d="M4 2 L4 20 L9 15.5 L12.5 22 L15 20.8 L11.5 14.3 L18 14 Z"
+                  fill="#ffffff" stroke="#000000" stroke-width="1.2" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="rec-badge" id="recBadge"><div class="rec-dot"></div><span id="recTime">0.0s</span></div>
+    </div>
+
+    <div class="controls">
+      <button id="playBtn" class="primary">Replay</button>
+      <button id="pauseBtn">Pause</button>
+      <span class="time" id="timeLabel">0.00s</span>
+      <span class="dataset-tag">Dataset: <b id="datasetLabel">Sample recording</b></span>
+    </div>
+
+    <div class="legend">
+      Position always follows the loaded telemetry exactly. Rotation, stretch, the motion streak
+      and the trailing dots are derived live from velocity each frame — use the panel to turn
+      effects off, exaggerate them, or record your own mouse path over the stage to test with.
+    </div>
+  </div>
+
+  <div class="panel">
+    <div>
+      <h3>Recording</h3>
+      <div class="controls" style="justify-content:flex-start; margin-bottom:8px;">
+        <button id="recordBtn" class="danger">● Record</button>
+        <button id="stopRecordBtn" disabled>Stop</button>
+      </div>
+      <div class="panel-actions" style="margin-bottom:8px;">
+        <button id="useSampleBtn">Use Sample</button>
+        <button id="useRecordingBtn" disabled>Use Recording</button>
+      </div>
+      <div class="panel-actions">
+        <button id="downloadBtn" disabled>Download JSON</button>
+      </div>
+      <div class="status" id="recStatus">Move your mouse over the stage while recording.</div>
+    </div>
+
+    <div>
+      <h3>Effects</h3>
+      <div class="toggle-row"><input type="checkbox" id="toggleStreak" checked><label for="toggleStreak">Motion streak</label></div>
+      <div class="toggle-row"><input type="checkbox" id="toggleTrail" checked><label for="toggleTrail">Inertia trail dots</label></div>
+      <div class="toggle-row"><input type="checkbox" id="toggleTilt" checked><label for="toggleTilt">Tilt / squash &amp; stretch</label></div>
+      <div class="toggle-row"><input type="checkbox" id="togglePath" checked><label for="togglePath">Reference path</label></div>
+    </div>
+
+    <div>
+      <h3>Physics tuning</h3>
+
+      <div class="field">
+        <div class="field-label"><span>Max speed (px/s)</span><span class="val" id="v-maxSpeed">3500</span></div>
+        <input type="range" id="s-maxSpeed" min="500" max="8000" step="100" value="3500">
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Stop threshold (px/s)</span><span class="val" id="v-moveThreshold">40</span></div>
+        <input type="range" id="s-moveThreshold" min="0" max="200" step="5" value="40">
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Max tilt (deg)</span><span class="val" id="v-tiltMax">22</span></div>
+        <input type="range" id="s-tiltMax" min="0" max="80" step="1" value="22">
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Stretch amount</span><span class="val" id="v-stretch">0.22</span></div>
+        <input type="range" id="s-stretch" min="0" max="1.5" step="0.02" value="0.22">
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Squash amount</span><span class="val" id="v-squash">0.12</span></div>
+        <input type="range" id="s-squash" min="0" max="0.9" step="0.02" value="0.12">
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Velocity responsiveness</span><span class="val" id="v-smoothing">0.25</span></div>
+        <input type="range" id="s-smoothing" min="0.05" max="0.95" step="0.05" value="0.25">
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Streak length</span><span class="val" id="v-streakLen">1.40</span></div>
+        <input type="range" id="s-streakLen" min="0" max="4" step="0.1" value="1.4">
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Streak opacity</span><span class="val" id="v-streakOpac">0.55</span></div>
+        <input type="range" id="s-streakOpac" min="0" max="1" step="0.05" value="0.55">
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Trail springiness</span><span class="val" id="v-trailLag">0.35</span></div>
+        <input type="range" id="s-trailLag" min="0.05" max="0.9" step="0.05" value="0.35">
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Settle duration (s)</span><span class="val" id="v-settleDur">0.60</span></div>
+        <input type="range" id="s-settleDur" min="0.1" max="2" step="0.05" value="0.6">
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Settle bounciness</span><span class="val" id="v-settleBounce">0.40</span></div>
+        <input type="range" id="s-settleBounce" min="0.05" max="1" step="0.05" value="0.4">
+      </div>
+
+      <div class="panel-actions">
+        <button id="exaggerateBtn">Exaggerate</button>
+        <button id="resetDefaultsBtn">Reset</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ---- Sample telemetry (t in ms, normalized nx/ny 0-1 relative to 1440x900 screenBounds) ----
+const sampleEvents = [
+  {t:39,nx:0.7576,ny:0.89},{t:216,nx:0.7576,ny:0.89},{t:253,nx:0.7715,ny:0.8756},
+  {t:286,nx:0.8069,ny:0.8389},{t:326,nx:0.8618,ny:0.7756},{t:366,nx:0.8868,ny:0.7422},
+  {t:407,nx:0.9021,ny:0.7133},{t:447,nx:0.9104,ny:0.6956},{t:483,nx:0.9153,ny:0.6867},
+  {t:518,nx:0.9194,ny:0.6789},{t:552,nx:0.9229,ny:0.6744},{t:587,nx:0.9278,ny:0.6678},
+  {t:625,nx:0.9389,ny:0.6589},{t:658,nx:0.9458,ny:0.6533},{t:698,nx:0.9556,ny:0.65},
+  {t:732,nx:0.9576,ny:0.6478},{t:771,nx:0.9597,ny:0.6478},{t:805,nx:0.9604,ny:0.6478},
+  {t:1028,nx:0.9604,ny:0.6478},{t:1206,nx:0.9604,ny:0.6478},{t:1430,nx:0.9604,ny:0.6478},
+  {t:1606,nx:0.9604,ny:0.6478},{t:1803,nx:0.9604,ny:0.6478},{t:2014,nx:0.9604,ny:0.6478},
+  {t:2160,nx:0.9576,ny:0.6444},{t:2194,nx:0.9451,ny:0.6267},{t:2226,nx:0.9306,ny:0.6089},
+  {t:2259,nx:0.9174,ny:0.5922},{t:2293,nx:0.9014,ny:0.5744},{t:2333,nx:0.8799,ny:0.5556},
+  {t:2368,nx:0.8743,ny:0.5489},{t:2406,nx:0.8736,ny:0.5478},{t:2480,nx:0.8792,ny:0.5478},
+  {t:2513,nx:0.9035,ny:0.5489},{t:2548,nx:0.9292,ny:0.5489},{t:2588,nx:0.9347,ny:0.5489},
+  {t:2622,nx:0.9361,ny:0.5489},{t:2664,nx:0.9361,ny:0.5478},{t:2703,nx:0.9361,ny:0.5433},
+  {t:2736,nx:0.9361,ny:0.5411},{t:2769,nx:0.9361,ny:0.54},{t:2803,nx:0.9361,ny:0.5367},
+  {t:2846,nx:0.9361,ny:0.53},{t:2885,nx:0.9375,ny:0.5244},{t:2925,nx:0.9375,ny:0.5222},
+  {t:2966,nx:0.9375,ny:0.5211},{t:3139,nx:0.9382,ny:0.5211},{t:3180,nx:0.9389,ny:0.5211},
+  {t:3218,nx:0.9389,ny:0.5211},{t:3251,nx:0.9396,ny:0.5211},{t:3284,nx:0.9403,ny:0.5211},
+  {t:3317,nx:0.941,ny:0.52},{t:3352,nx:0.9424,ny:0.5178},{t:3387,nx:0.9437,ny:0.5144},
+  {t:3422,nx:0.9451,ny:0.5111},{t:3463,nx:0.9458,ny:0.51},{t:3502,nx:0.9458,ny:0.5078},
+  {t:3609,nx:0.9458,ny:0.5078},{t:3676,nx:0.9458,ny:0.5067},{t:3713,nx:0.9458,ny:0.5056},
+  {t:3750,nx:0.9458,ny:0.5022},{t:3790,nx:0.9458,ny:0.5011},{t:3823,nx:0.9458,ny:0.5011},
+  {t:4011,nx:0.9458,ny:0.5011},{t:4200,nx:0.9458,ny:0.5011},{t:4630,nx:0.9458,ny:0.5011},
+  {t:4890,nx:0.925,ny:0.5011},{t:4935,nx:0.8333,ny:0.4833},{t:4981,nx:0.7208,ny:0.4356},
+  {t:5018,nx:0.6674,ny:0.3978},{t:5060,nx:0.6486,ny:0.3744},{t:5109,nx:0.6465,ny:0.3711},
+  {t:5386,nx:0.6007,ny:0.3856},{t:5461,nx:0.5042,ny:0.43},{t:5561,nx:0.4493,ny:0.4811},
+  {t:5657,nx:0.4326,ny:0.5011},{t:5728,nx:0.4069,ny:0.4456},{t:5833,nx:0.3889,ny:0.3178},
+  {t:5892,nx:0.3847,ny:0.2789},{t:5950,nx:0.384,ny:0.2644},{t:5994,nx:0.384,ny:0.2611},
+  {t:6133,nx:0.3722,ny:0.2611},{t:6170,nx:0.3514,ny:0.2611}
+];
+const SAMPLE_HOLD_MS = 26904; // matches original recording_stop
+
+const STAGE_W = 1440, STAGE_H = 900;
+const stage = document.getElementById('stage');
+const cursor = document.getElementById('cursor');
+const cursorInner = document.getElementById('cursorInner');
+const streak = document.getElementById('streak');
+const trailGroup = document.getElementById('trailGroup');
+const dots = [document.getElementById('dot0'), document.getElementById('dot1'),
+              document.getElementById('dot2'), document.getElementById('dot3')];
+const pathSvg = document.getElementById('pathSvg');
+const pathPoly = document.getElementById('pathPoly');
+const timeLabel = document.getElementById('timeLabel');
+const playBtn = document.getElementById('playBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const datasetLabel = document.getElementById('datasetLabel');
+
+function toPx(nx, ny) {
+  const r = stage.getBoundingClientRect();
+  return { x: nx * r.width, y: ny * r.height };
+}
+
+// ---------------- dataset state ----------------
+let currentEvents = sampleEvents;
+let currentHoldMs = SAMPLE_HOLD_MS;
+let recordedEvents = null;
+let recordedHoldMs = 0;
+
+function refreshPath() {
+  pathPoly.setAttribute('points', currentEvents.map(e => `${e.nx*STAGE_W},${e.ny*STAGE_H}`).join(' '));
+}
+
+// ---------------- position timeline (exact recorded path, unmodified) ----------------
+function buildTimeline() {
+  const tl = gsap.timeline({ paused: true, defaults: { ease: 'none' } });
+  const start = toPx(currentEvents[0].nx, currentEvents[0].ny);
+  tl.set(cursor, { x: start.x, y: start.y });
+
+  for (let i = 1; i < currentEvents.length; i++) {
+    const prev = currentEvents[i - 1];
+    const cur = currentEvents[i];
+    const dur = Math.max((cur.t - prev.t) / 1000, 0.001);
+    const p = toPx(cur.nx, cur.ny);
+    tl.to(cursor, { x: p.x, y: p.y, duration: dur }, prev.t / 1000);
+  }
+  const last = currentEvents[currentEvents.length - 1];
+  const holdTail = Math.max((currentHoldMs - last.t) / 1000, 0);
+  tl.to({}, { duration: holdTail });
+
+  tl.eventCallback('onUpdate', () => { timeLabel.textContent = tl.time().toFixed(2) + 's'; });
+  return tl;
+}
+
+let timeline = buildTimeline();
+
+// ---------------- tunable physics config ----------------
+const cfg = {
+  maxSpeed: 3500, moveThreshold: 40, tiltMax: 22, stretch: 0.22, squash: 0.12,
+  smoothing: 0.25, streakLen: 1.4, streakOpac: 0.55, trailLag: 0.35,
+  settleDur: 0.6, settleBounce: 0.4
+};
+const DEFAULTS = { ...cfg };
+
+let enableStreak = true, enableTrail = true, enableTilt = true;
+
+let prevX = 0, prevY = 0, prevTime = 0;
+let smoothVX = 0, smoothVY = 0, smoothTilt = 0, smoothIntensity = 0;
+let isMoving = false;
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function resetPhysics() {
+  const start = toPx(currentEvents[0].nx, currentEvents[0].ny);
+  prevX = start.x; prevY = start.y; prevTime = performance.now();
+  smoothVX = 0; smoothVY = 0; smoothTilt = 0; smoothIntensity = 0;
+  isMoving = false;
+  gsap.killTweensOf(cursorInner);
+  gsap.killTweensOf(dots);
+  gsap.killTweensOf(streak);
+  gsap.set(cursorInner, { rotation: 0, scaleX: 1, scaleY: 1 });
+  gsap.set(streak, { x: start.x, y: start.y, scaleX: 0, opacity: 0 });
+  dots.forEach(d => { d._x = start.x; d._y = start.y; gsap.set(d, { x: start.x, y: start.y, opacity: 0 }); });
+}
+
+function updatePhysics() {
+  const curX = gsap.getProperty(cursor, 'x');
+  const curY = gsap.getProperty(cursor, 'y');
+  const now = performance.now();
+  const dt = Math.max((now - prevTime) / 1000, 1 / 120);
+
+  const vx = (curX - prevX) / dt;
+  const vy = (curY - prevY) / dt;
+  prevX = curX; prevY = curY; prevTime = now;
+
+  smoothVX = lerp(smoothVX, vx, cfg.smoothing);
+  smoothVY = lerp(smoothVY, vy, cfg.smoothing);
+
+  const speed = Math.hypot(smoothVX, smoothVY);
+  const intensity = clamp(speed / cfg.maxSpeed, 0, 1);
+  smoothIntensity = lerp(smoothIntensity, intensity, Math.min(cfg.smoothing + 0.1, 0.95));
+
+  if (speed > cfg.moveThreshold) {
+    if (!isMoving) { gsap.killTweensOf(cursorInner, 'scaleX,scaleY'); isMoving = true; }
+
+    if (enableTilt) {
+      const tiltTarget = clamp((smoothVX / cfg.maxSpeed) * cfg.tiltMax * 2.2, -cfg.tiltMax, cfg.tiltMax);
+      smoothTilt = lerp(smoothTilt, tiltTarget, 0.2);
+      const stretch = 1 + smoothIntensity * cfg.stretch;
+      const squash = 1 - smoothIntensity * cfg.squash;
+      gsap.set(cursorInner, { rotation: smoothTilt, scaleX: stretch, scaleY: squash });
+    }
+
+    if (enableStreak) {
+      const angle = Math.atan2(smoothVY, smoothVX) * 180 / Math.PI;
+      gsap.set(streak, {
+        x: curX, y: curY,
+        rotation: angle + 180,
+        scaleX: 0.3 + smoothIntensity * cfg.streakLen,
+        opacity: 0.15 + smoothIntensity * cfg.streakOpac
+      });
+    }
+  } else if (isMoving) {
+    isMoving = false;
+    if (enableTilt) {
+      gsap.to(cursorInner, { scaleX: 1, scaleY: 1, duration: cfg.settleDur, ease: `elastic.out(1,${cfg.settleBounce})` });
+    }
+    if (enableStreak) {
+      gsap.to(streak, { opacity: 0, scaleX: 0.2, duration: 0.4, ease: 'power2.out' });
+    }
+  }
+
+  if (enableTrail) {
+    let targetX = curX, targetY = curY;
+    dots.forEach((d, i) => {
+      const lag = Math.max(cfg.trailLag - i * 0.05, 0.02);
+      d._x = lerp(d._x, targetX, lag);
+      d._y = lerp(d._y, targetY, lag);
+      gsap.set(d, { x: d._x, y: d._y, opacity: smoothIntensity * (0.5 - i * 0.1) });
+      targetX = d._x; targetY = d._y;
+    });
+  }
+}
+
+gsap.ticker.add(updatePhysics);
+
+function play() {
+  timeline.kill();
+  timeline = buildTimeline();
+  resetPhysics();
+  timeline.play(0);
+  pauseBtn.textContent = 'Pause';
+}
+function loadDataset(evts, holdMs, label) {
+  currentEvents = evts;
+  currentHoldMs = holdMs;
+  datasetLabel.textContent = label;
+  refreshPath();
+  play();
+}
+
+playBtn.addEventListener('click', play);
+pauseBtn.addEventListener('click', () => {
+  if (timeline.paused()) { timeline.play(); pauseBtn.textContent = 'Pause'; }
+  else { timeline.pause(); pauseBtn.textContent = 'Resume'; }
+});
+window.addEventListener('resize', () => {
+  const progress = timeline.progress();
+  const wasPlaying = !timeline.paused();
+  timeline = buildTimeline();
+  timeline.progress(progress);
+  if (wasPlaying) timeline.play();
+});
+
+// ---------------- effect toggles ----------------
+document.getElementById('toggleStreak').addEventListener('change', e => {
+  enableStreak = e.target.checked;
+  streak.style.display = enableStreak ? '' : 'none';
+});
+document.getElementById('toggleTrail').addEventListener('change', e => {
+  enableTrail = e.target.checked;
+  trailGroup.style.display = enableTrail ? '' : 'none';
+});
+document.getElementById('toggleTilt').addEventListener('change', e => {
+  enableTilt = e.target.checked;
+  if (!enableTilt) gsap.set(cursorInner, { rotation: 0, scaleX: 1, scaleY: 1 });
+});
+document.getElementById('togglePath').addEventListener('change', e => {
+  pathSvg.style.display = e.target.checked ? '' : 'none';
+});
+
+// ---------------- slider wiring ----------------
+const sliderMap = [
+  ['maxSpeed', 's-maxSpeed', 'v-maxSpeed', v => v],
+  ['moveThreshold', 's-moveThreshold', 'v-moveThreshold', v => v],
+  ['tiltMax', 's-tiltMax', 'v-tiltMax', v => v],
+  ['stretch', 's-stretch', 'v-stretch', v => v.toFixed(2)],
+  ['squash', 's-squash', 'v-squash', v => v.toFixed(2)],
+  ['smoothing', 's-smoothing', 'v-smoothing', v => v.toFixed(2)],
+  ['streakLen', 's-streakLen', 'v-streakLen', v => v.toFixed(2)],
+  ['streakOpac', 's-streakOpac', 'v-streakOpac', v => v.toFixed(2)],
+  ['trailLag', 's-trailLag', 'v-trailLag', v => v.toFixed(2)],
+  ['settleDur', 's-settleDur', 'v-settleDur', v => v.toFixed(2)],
+  ['settleBounce', 's-settleBounce', 'v-settleBounce', v => v.toFixed(2)],
+];
+function bindSlider(key, sliderId, labelId, fmt) {
+  const el = document.getElementById(sliderId);
+  const lbl = document.getElementById(labelId);
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    cfg[key] = v;
+    lbl.textContent = fmt(v);
+  });
+}
+sliderMap.forEach(([key, sId, lId, fmt]) => bindSlider(key, sId, lId, fmt));
+
+function applyConfigToUI() {
+  sliderMap.forEach(([key, sId, lId, fmt]) => {
+    document.getElementById(sId).value = cfg[key];
+    document.getElementById(lId).textContent = fmt(cfg[key]);
+  });
+}
+
+document.getElementById('resetDefaultsBtn').addEventListener('click', () => {
+  Object.assign(cfg, DEFAULTS);
+  applyConfigToUI();
+});
+document.getElementById('exaggerateBtn').addEventListener('click', () => {
+  Object.assign(cfg, {
+    maxSpeed: 1800, moveThreshold: 25, tiltMax: 55, stretch: 0.9, squash: 0.5,
+    smoothing: 0.4, streakLen: 3.2, streakOpac: 0.9, trailLag: 0.5,
+    settleDur: 0.9, settleBounce: 0.75
+  });
+  applyConfigToUI();
+});
+
+// ---------------- recording ----------------
+const recordBtn = document.getElementById('recordBtn');
+const stopRecordBtn = document.getElementById('stopRecordBtn');
+const useSampleBtn = document.getElementById('useSampleBtn');
+const useRecordingBtn = document.getElementById('useRecordingBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const recStatus = document.getElementById('recStatus');
+const recBadge = document.getElementById('recBadge');
+const recTimeEl = document.getElementById('recTime');
+
+let isRecording = false;
+let recordStart = 0;
+let rawCapture = [];
+let recTimerHandle = null;
+
+function pointerToNorm(e) {
+  const r = stage.getBoundingClientRect();
+  return {
+    nx: clamp((e.clientX - r.left) / r.width, 0, 1),
+    ny: clamp((e.clientY - r.top) / r.height, 0, 1)
+  };
+}
+
+function onRecordMove(e) {
+  const { nx, ny } = pointerToNorm(e);
+  rawCapture.push({ t: Math.round(performance.now() - recordStart), nx, ny });
+}
+
+recordBtn.addEventListener('click', () => {
+  isRecording = true;
+  rawCapture = [];
+  recordStart = performance.now();
+  timeline.pause();
+  stage.addEventListener('pointermove', onRecordMove);
+  recordBtn.disabled = true;
+  stopRecordBtn.disabled = false;
+  useSampleBtn.disabled = true;
+  useRecordingBtn.disabled = true;
+  recBadge.classList.add('active');
+  recStatus.classList.remove('error');
+  recStatus.textContent = 'Recording… move your mouse over the stage.';
+  recTimerHandle = setInterval(() => {
+    recTimeEl.textContent = ((performance.now() - recordStart) / 1000).toFixed(1) + 's';
+  }, 100);
+});
+
+stopRecordBtn.addEventListener('click', () => {
+  isRecording = false;
+  stage.removeEventListener('pointermove', onRecordMove);
+  clearInterval(recTimerHandle);
+  recBadge.classList.remove('active');
+  recordBtn.disabled = false;
+  stopRecordBtn.disabled = true;
+  useSampleBtn.disabled = false;
+
+  if (rawCapture.length < 2) {
+    recStatus.classList.add('error');
+    recStatus.textContent = 'Not enough movement captured — try again and move the mouse across the stage.';
+    return;
+  }
+
+  recordedEvents = rawCapture;
+  recordedHoldMs = rawCapture[rawCapture.length - 1].t + 400; // small hold at the end
+  useRecordingBtn.disabled = false;
+  downloadBtn.disabled = false;
+  recStatus.classList.remove('error');
+  recStatus.textContent = `Captured ${rawCapture.length} points over ${(recordedHoldMs/1000).toFixed(1)}s.`;
+  loadDataset(recordedEvents, recordedHoldMs, 'Your recording');
+});
+
+useSampleBtn.addEventListener('click', () => loadDataset(sampleEvents, SAMPLE_HOLD_MS, 'Sample recording'));
+useRecordingBtn.addEventListener('click', () => {
+  if (recordedEvents) loadDataset(recordedEvents, recordedHoldMs, 'Your recording');
+});
+
+downloadBtn.addEventListener('click', () => {
+  if (!recordedEvents) return;
+  const payload = {
+    recordingStartTime: new Date().toISOString(),
+    durationMs: recordedHoldMs,
+    screenBounds: { x: 0, y: 0, width: STAGE_W, height: STAGE_H },
+    totalEvents: recordedEvents.length,
+    events: [
+      { t: 0, type: 'recording_start' },
+      ...recordedEvents.map(e => ({
+        t: e.t, type: 'move',
+        x: Math.round(e.nx * STAGE_W), y: Math.round(e.ny * STAGE_H),
+        nx: Number(e.nx.toFixed(4)), ny: Number(e.ny.toFixed(4)),
+        cursor: 'default'
+      })),
+      { t: recordedHoldMs, type: 'recording_stop' }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cursor-recording-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+// ---------------- init ----------------
+refreshPath();
+resetPhysics();
+play();
+</script>
+</body>
+</html>
